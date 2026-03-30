@@ -1,0 +1,59 @@
+# Doc Chain Sync Configuration
+# Syncs Obsidian vault deliverables to Notion + Google Drive (for NotebookLM)
+
+# Vault source settings
+vault:
+  base_path: ~/Vault/Claude Code
+  # Only these subdirectories get synced (deliverables + decisions)
+  watch_folders:
+    - Projects
+    - Decisions
+    - Plans
+  # Skip these patterns
+  exclude_patterns:
+    - "*.tmp"
+    - ".DS_Store"
+    - "_index.md"
+    - "_about.md"
+    - "*.swp"
+
+# Notion settings
+notion:
+  enabled: true
+  # Create integration at https://www.notion.so/my-integrations
+  # Then share a database with the integration
+  api_token_env: NOTION_DOC_CHAIN_TOKEN  # reads from this env var
+  database_id_env: NOTION_DOC_CHAIN_DB   # reads from this env var
+  # Property mapping (Notion database column names)
+  properties:
+    title: Name           # Title property
+    source_folder: Source  # Select: Projects, Decisions, Plans
+    synced_at: Synced At   # Date property
+    file_name: File Name   # Rich text property
+    vault_path: Vault Path # Rich text property
+
+# Google Drive settings (for NotebookLM ingestion)
+google_drive:
+  enabled: true
+  # Two modes: "desktop_app" (simple folder copy) or "rclone" (headless sync)
+  mode: rclone
+  # Desktop app mode: path to local Google Drive folder
+  desktop_app_path: ~/Google Drive/My Drive/NotebookLM-Vault
+  # Rclone mode: remote name configured via `rclone config`
+  rclone_remote: gdrive
+  rclone_dest: NotebookLM-Vault
+  # Subfolder structure mirrors vault (Projects/, Decisions/, Plans/)
+  mirror_structure: true
+
+# Sync behavior
+sync:
+  # State file tracks what's been synced and when
+  state_file: ~/scripts/doc-chain/sync-state.json
+  # Log file
+  log_file: ~/scripts/doc-chain/doc-chain-sync.log
+  # Max log size before rotation (bytes)
+  max_log_size: 1048576  # 1MB
+  # Dry run mode (logs what would happen without syncing)
+  dry_run: false
+  # How many seconds between polls (LaunchAgent interval)
+  poll_interval: 300

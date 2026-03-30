@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+pytest-cache-files-*/
+.omc/
+
+# Runtime state (machine-specific)
+sync-state.json
+doc-chain-sync.log
+
+# Binary deliverables
+*.docx
