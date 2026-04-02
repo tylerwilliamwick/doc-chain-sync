@@ -9,6 +9,9 @@ vault:
     - Projects
     - Decisions
     - Plans
+    - Daily
+    - Meetings
+    - Retros
   # Skip these patterns
   exclude_patterns:
     - "*.tmp"
@@ -27,10 +30,45 @@ notion:
   # Property mapping (Notion database column names)
   properties:
     title: Name           # Title property
-    source_folder: Source  # Select: Projects, Decisions, Plans
+    source_folder: Source  # Select: Projects, Decisions, Plans, Daily, Meetings, Retros
+    type_field: Type       # Select: content type (Daily Note, Meeting Notes, etc.)
     synced_at: Synced At   # Date property
     file_name: File Name   # Rich text property
     vault_path: Vault Path # Rich text property
+
+  type_detection:
+    folder_map:
+      Projects: Project
+      Decisions: Decision
+      Plans: Plan
+      Daily: Daily Note     # fallback; handoff detection overrides
+      Meetings: Meeting Notes
+      Retros: Retro
+    handoff_heuristics:
+      filename_contains:
+        - handoff
+      content_headers:
+        - "## Task State"
+        - "## Decisions Made"
+        - "## TODOS"
+
+  page_icons:
+    Daily Note: "📅"
+    Meeting Notes: "💬"
+    Retro: "🔄"
+    Project: "🏗️"
+    Decision: "⚡"
+    Plan: "🗺️"
+    Session Handoff: "🤖"
+
+  page_covers:
+    Daily Note: "https://www.notion.so/images/page-cover/gradients_2.png"
+    Meeting Notes: "https://www.notion.so/images/page-cover/gradients_8.png"
+    Retro: "https://www.notion.so/images/page-cover/gradients_11.png"
+    Project: "https://www.notion.so/images/page-cover/gradients_6.png"
+    Decision: "https://www.notion.so/images/page-cover/gradients_3.png"
+    Plan: "https://www.notion.so/images/page-cover/gradients_10.png"
+    Session Handoff: "https://www.notion.so/images/page-cover/gradients_5.png"
 
 # Google Drive settings (for NotebookLM ingestion)
 google_drive:

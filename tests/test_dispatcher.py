@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-from dispatcher import load_config, scan_vault, cleanup_deleted, run_sync
+from dispatcher import load_config, scan_vault, cleanup_deleted, run_sync, detect_content_type
 from state import SyncState
 
 
@@ -123,6 +123,100 @@ class TestCleanupDeleted(unittest.TestCase):
         cleanup_deleted(state, Path(self.vault), logger)
 
         self.assertEqual(state.get_file_state("Claude Code/Projects/gone.md"), {})
+
+
+class TestDetectContentType(unittest.TestCase):
+    """Tests for content type detection logic."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.config = {
+            "notion": {
+                "type_detection": {
+                    "folder_map": {
+                        "Projects": "Project",
+                        "Decisions": "Decision",
+                        "Plans": "Plan",
+                        "Daily": "Daily Note",
+                        "Meetings": "Meeting Notes",
+                        "Retros": "Retro",
+                    },
+                    "handoff_heuristics": {
+                        "filename_contains": ["handoff"],
+                        "content_headers": ["## Task State", "## Decisions Made", "## TODOS"],
+                    },
+                }
+            }
+        }
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def _make_file(self, name, content="# Note"):
+        p = Path(self.tmp) / name
+        p.write_text(content)
+        return p
+
+    def test_handoff_filename_returns_session_handoff(self):
+        """File named handoff-2026-04-01.md in Daily/ returns Session Handoff."""
+        f = self._make_file("handoff-2026-04-01.md")
+        result = detect_content_type(f, "Daily", self.config)
+        self.assertEqual(result, "Session Handoff")
+
+    def test_handoff_uppercase_in_filename(self):
+        """Filename check is case-insensitive."""
+        f = self._make_file("Session-Handoff-2026-04-01.md")
+        result = detect_content_type(f, "Daily", self.config)
+        self.assertEqual(result, "Session Handoff")
+
+    def test_daily_non_handoff_returns_daily_note(self):
+        """Daily note without handoff markers returns Daily Note."""
+        f = self._make_file("2026-04-01.md", "# Daily Note\nToday I did things.")
+        result = detect_content_type(f, "Daily", self.config)
+        self.assertEqual(result, "Daily Note")
+
+    def test_content_marker_task_state(self):
+        """File in Daily/ with ## Task State header returns Session Handoff."""
+        f = self._make_file("2026-04-01.md",
+                            "# Notes\n## Task State\nWorking on X.")
+        result = detect_content_type(f, "Daily", self.config)
+        self.assertEqual(result, "Session Handoff")
+
+    def test_content_marker_todos(self):
+        """File in Daily/ with ## TODOS header returns Session Handoff."""
+        f = self._make_file("2026-04-01.md", "## TODOS\n- Fix bug")
+        result = detect_content_type(f, "Daily", self.config)
+        self.assertEqual(result, "Session Handoff")
+
+    def test_meetings_folder_returns_meeting_notes(self):
+        """Any file in Meetings/ folder returns Meeting Notes."""
+        f = self._make_file("standup.md")
+        result = detect_content_type(f, "Meetings", self.config)
+        self.assertEqual(result, "Meeting Notes")
+
+    def test_plans_folder_returns_plan(self):
+        """Any file in Plans/ folder returns Plan."""
+        f = self._make_file("q2-plan.md")
+        result = detect_content_type(f, "Plans", self.config)
+        self.assertEqual(result, "Plan")
+
+    def test_projects_folder_returns_project(self):
+        """Any file in Projects/ folder returns Project."""
+        f = self._make_file("my-project.md")
+        result = detect_content_type(f, "Projects", self.config)
+        self.assertEqual(result, "Project")
+
+    def test_decisions_folder_returns_decision(self):
+        """Any file in Decisions/ folder returns Decision."""
+        f = self._make_file("arch-decision.md")
+        result = detect_content_type(f, "Decisions", self.config)
+        self.assertEqual(result, "Decision")
+
+    def test_retros_folder_returns_retro(self):
+        """Any file in Retros/ folder returns Retro."""
+        f = self._make_file("sprint-retro.md")
+        result = detect_content_type(f, "Retros", self.config)
+        self.assertEqual(result, "Retro")
 
 
 class TestRunSync(unittest.TestCase):

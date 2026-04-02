@@ -51,6 +51,43 @@ def load_config(config_path: str = None) -> dict:
         return yaml.safe_load(f)
 
 
+def detect_content_type(file_path: Path, source_folder: str, config: dict) -> str:
+    """Determine the content type for a vault file.
+
+    For Daily/ folder: checks filename for handoff heuristics first (fast path),
+    then reads first 500 chars for content markers if needed.
+    For all other folders: direct folder_map lookup.
+
+    Returns a content type string matching the type_detection.folder_map values.
+    """
+    notion_cfg = config.get("notion", {})
+    type_cfg = notion_cfg.get("type_detection", {})
+    folder_map = type_cfg.get("folder_map", {})
+    heuristics = type_cfg.get("handoff_heuristics", {})
+
+    # Fast path: non-Daily folders map directly
+    if source_folder != "Daily":
+        return folder_map.get(source_folder, source_folder)
+
+    # Daily folder: check handoff heuristics
+    filename_lower = file_path.name.lower()
+    for marker in heuristics.get("filename_contains", []):
+        if marker.lower() in filename_lower:
+            return "Session Handoff"
+
+    # Check content headers (read first 500 chars only)
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            head = f.read(500)
+        for header in heuristics.get("content_headers", []):
+            if header in head:
+                return "Session Handoff"
+    except OSError:
+        pass
+
+    return folder_map.get("Daily", "Daily Note")
+
+
 def scan_vault(vault_base: Path, watch_folders: list,
                exclude_patterns: list) -> list:
     """Scan vault folders for syncable files.
@@ -152,6 +189,7 @@ def run_sync(config: dict, dry_run: bool = False,
         if verbose:
             logger.info(f"Syncing: {file_path.name} from {source_folder}")
 
+        content_type = detect_content_type(file_path, source_folder, config)
         file_synced = False
         notion_page_id = state.get_notion_page_id(vault_path)
         gdrive_path = None
@@ -163,6 +201,7 @@ def run_sync(config: dict, dry_run: bool = False,
                     file_path, source_folder,
                     existing_page_id=notion_page_id,
                     vault_rel_path=vault_path,
+                    content_type=content_type,
                 )
                 logger.sync_event(file_path.name, "notion", "ok",
                                   "updated" if notion_page_id else "created")
