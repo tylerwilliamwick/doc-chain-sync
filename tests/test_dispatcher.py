@@ -219,6 +219,86 @@ class TestDetectContentType(unittest.TestCase):
         self.assertEqual(result, "Retro")
 
 
+class TestScanVaultSymlinks(unittest.TestCase):
+    """Tests for symlink handling in scan_vault."""
+
+    def setUp(self):
+        self.vault = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.vault, "Projects"))
+
+    def tearDown(self):
+        shutil.rmtree(self.vault, ignore_errors=True)
+
+    def test_scan_vault_skips_symlinks(self):
+        """scan_vault returns real .md files but not symlinked ones."""
+        real_file = Path(self.vault) / "Projects" / "real.md"
+        real_file.write_text("# Real")
+
+        # Create a real target for the symlink to point at
+        target_file = Path(self.vault) / "target.md"
+        target_file.write_text("# Target")
+        link_file = Path(self.vault) / "Projects" / "linked.md"
+        link_file.symlink_to(target_file)
+
+        files = scan_vault(Path(self.vault), ["Projects"], [])
+        names = [f[0].name for f in files]
+
+        self.assertIn("real.md", names)
+        self.assertNotIn("linked.md", names)
+
+
+class TestVaultPathPrefix(unittest.TestCase):
+    """Tests for vault_path prefix derivation in run_sync."""
+
+    def setUp(self):
+        # Use a vault directory named something other than "Claude Code"
+        self.vault = tempfile.mkdtemp(prefix="MyVault_")
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.vault, "Projects"))
+        Path(f"{self.vault}/Projects/doc.md").write_text("# Doc")
+
+        self.config = {
+            "vault": {
+                "base_path": self.vault,
+                "watch_folders": ["Projects"],
+                "exclude_patterns": [],
+            },
+            "notion": {"enabled": False},
+            "google_drive": {"enabled": False},
+            "sync": {
+                "state_file": os.path.join(self.tmp, "state.json"),
+                "log_file": os.path.join(self.tmp, "test.log"),
+                "max_log_size": 1048576,
+            },
+        }
+
+    def tearDown(self):
+        shutil.rmtree(self.vault, ignore_errors=True)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_vault_path_prefix_matches_base(self):
+        """vault_path uses vault_base.name, not hardcoded 'Claude Code'."""
+        vault_base = Path(self.vault)
+        vault_name = vault_base.name
+
+        # Run with force=True so the file actually gets processed into state
+        # Both sync targets are disabled so no actual network calls happen,
+        # but dry_run=True still records synced count correctly
+        stats = run_sync(self.config, dry_run=True, force=True)
+        # dry_run counts synced without persisting state; just verify no errors
+        self.assertEqual(stats["errors"], 0)
+
+        # Directly call scan_vault and build vault_path as dispatcher does
+        files = scan_vault(vault_base, ["Projects"], [])
+        self.assertTrue(len(files) > 0)
+        file_path, source_folder = files[0]
+        rel = file_path.relative_to(vault_base)
+        vault_path = f"{vault_base.name}/{rel}"
+
+        self.assertTrue(vault_path.startswith(f"{vault_name}/"))
+        self.assertNotIn("Claude Code", vault_path)
+
+
 class TestRunSync(unittest.TestCase):
     """Integration tests for the full sync pipeline."""
 

@@ -102,6 +102,9 @@ def scan_vault(vault_base: Path, watch_folders: list,
             continue
 
         for md_file in folder.rglob("*.md"):
+            if md_file.is_symlink():
+                print(f"Skipping symlink: {md_file}")
+                continue
             name = md_file.name
             skip = False
             for pattern in exclude_patterns:
@@ -122,7 +125,7 @@ def cleanup_deleted(state: SyncState, vault_base: Path, logger: SyncLogger):
     """Remove state entries for files that no longer exist in the vault."""
     all_synced = state.get_all_synced_files()
     for vault_path in list(all_synced.keys()):
-        full_path = vault_base / vault_path.replace("Claude Code/", "", 1)
+        full_path = vault_base / vault_path.replace(f"{vault_base.name}/", "", 1)
         if not full_path.exists():
             state.remove_file(vault_path)
             logger.info(f"Removed state for deleted file: {vault_path}")
@@ -174,7 +177,7 @@ def run_sync(config: dict, dry_run: bool = False,
             rel = file_path.relative_to(vault_base)
         except ValueError:
             rel = Path(source_folder) / file_path.name
-        vault_path = f"Claude Code/{rel}"
+        vault_path = f"{vault_base.name}/{rel}"
         mtime = file_path.stat().st_mtime
 
         if not force and not state.needs_sync(vault_path, mtime):

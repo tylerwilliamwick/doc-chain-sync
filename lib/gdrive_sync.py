@@ -91,10 +91,14 @@ class GDriveSync:
 
         # Ensure remote directory exists
         remote_dir = f"{self.rclone_remote}:{self.rclone_dest}/{source_folder}"
-        subprocess.run(
+        mkdir_result = subprocess.run(
             ["rclone", "mkdir", remote_dir],
             capture_output=True, text=True, timeout=30
         )
+        if mkdir_result.returncode != 0:
+            raise GDriveSyncError(
+                f"rclone mkdir failed for {remote_dir}: {mkdir_result.stderr.strip()}"
+            )
 
         # Copy the file
         result = subprocess.run(

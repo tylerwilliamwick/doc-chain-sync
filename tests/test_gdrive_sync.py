@@ -166,6 +166,47 @@ class TestGDriveSyncRcloneMode(unittest.TestCase):
 
         os.unlink(tmp.name)
 
+    @patch("gdrive_sync.subprocess.run")
+    def test_rclone_mkdir_failure_raises(self, mock_run):
+        """Non-zero mkdir returncode raises GDriveSyncError."""
+        mock_run.return_value = MagicMock(
+            returncode=1, stderr="Error: connection failed"
+        )
+
+        gdrive = GDriveSync(self.config)
+        gdrive.is_configured = lambda: True
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".md", delete=False)
+        tmp.write(b"# Test")
+        tmp.close()
+
+        with self.assertRaises(GDriveSyncError) as ctx:
+            gdrive.sync_file(Path(tmp.name), "Projects")
+
+        self.assertIn("rclone mkdir failed", str(ctx.exception))
+        os.unlink(tmp.name)
+
+    @patch("gdrive_sync.subprocess.run")
+    def test_rclone_mkdir_timeout_propagates(self, mock_run):
+        """TimeoutExpired from mkdir propagates without being swallowed."""
+        import subprocess
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["rclone", "mkdir", "gdrive:NotebookLM-Vault/Projects"],
+            timeout=30
+        )
+
+        gdrive = GDriveSync(self.config)
+        gdrive.is_configured = lambda: True
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".md", delete=False)
+        tmp.write(b"# Test")
+        tmp.close()
+
+        with self.assertRaises(subprocess.TimeoutExpired):
+            gdrive.sync_file(Path(tmp.name), "Projects")
+
+        os.unlink(tmp.name)
+
 
 class TestGDriveSyncDisabled(unittest.TestCase):
     """Tests for disabled sync."""

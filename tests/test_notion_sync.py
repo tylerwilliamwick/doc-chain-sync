@@ -480,6 +480,81 @@ class TestNotionSync(unittest.TestCase):
         self.assertNotEqual(blocks[0]["type"], "table_of_contents")
 
     # ------------------------------------------------------------------ #
+    # Block deletion status_code handling
+    # ------------------------------------------------------------------ #
+
+    @patch.dict(os.environ, {"TEST_NOTION_TOKEN": "tok", "TEST_NOTION_DB": "db"})
+    def test_block_deletion_403_raises(self):
+        """A 403 during block DELETE propagates as NotionSyncError."""
+        notion = self._notion()
+
+        def mock_request(method, endpoint, body=None):
+            if method == "PATCH" and "pages/" in endpoint:
+                return {"id": "page-id"}
+            if method == "GET" and "children" in endpoint:
+                return {"results": [{"id": "block-1"}], "has_more": False}
+            if method == "DELETE":
+                raise NotionSyncError("Forbidden", status_code=403)
+            return {}
+
+        with patch.object(notion, "_request", side_effect=mock_request):
+            with self.assertRaises(NotionSyncError):
+                notion.update_page("page-id", "Title", "Source", "# H",
+                                   "f.md", "path")
+
+    @patch.dict(os.environ, {"TEST_NOTION_TOKEN": "tok", "TEST_NOTION_DB": "db"})
+    def test_block_deletion_404_passes(self):
+        """A 404 during block DELETE is silently ignored."""
+        notion = self._notion()
+
+        def mock_request(method, endpoint, body=None):
+            if method == "PATCH" and "pages/" in endpoint:
+                return {"id": "page-id"}
+            if method == "GET" and "children" in endpoint:
+                return {"results": [{"id": "block-1"}], "has_more": False}
+            if method == "DELETE":
+                raise NotionSyncError("Not Found", status_code=404)
+            if method == "PATCH" and "children" in endpoint:
+                return {}
+            return {}
+
+        with patch.object(notion, "_request", side_effect=mock_request):
+            # Should not raise
+            result = notion.update_page("page-id", "Title", "Source", "# H",
+                                        "f.md", "path")
+        self.assertEqual(result, "page-id")
+
+    @patch.dict(os.environ, {"TEST_NOTION_TOKEN": "tok", "TEST_NOTION_DB": "db"})
+    def test_retry_jitter(self):
+        """Jitter (random.uniform) is applied during retry sleep."""
+        notion = self._notion()
+        from urllib.error import HTTPError
+        import io
+
+        call_count = {"n": 0}
+
+        def mock_urlopen(req, timeout=30):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise HTTPError(url="", code=429, msg="Too Many Requests",
+                                hdrs=None, fp=io.BytesIO(b"rate limited"))
+            resp = MagicMock()
+            resp.read.return_value = b'{"id": "page-id"}'
+            resp.__enter__ = lambda s: s
+            resp.__exit__ = MagicMock(return_value=False)
+            return resp
+
+        with patch("notion_sync.urlopen", side_effect=mock_urlopen), \
+             patch("notion_sync.time.sleep") as mock_sleep, \
+             patch("notion_sync.random.uniform", return_value=0.05) as mock_uniform:
+            notion._request("GET", "pages/test-id")
+
+        mock_uniform.assert_called_once()
+        mock_sleep.assert_called_once()
+        args = mock_sleep.call_args[0][0]
+        self.assertAlmostEqual(args, 1.05, places=5)
+
+    # ------------------------------------------------------------------ #
     # Pagination in update_page
     # ------------------------------------------------------------------ #
 

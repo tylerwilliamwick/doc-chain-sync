@@ -21,6 +21,7 @@ Requires:
 
 import json
 import os
+import random
 import re
 import time
 import urllib.parse
@@ -40,7 +41,9 @@ _RETRY_BASE_DELAY = 1.0  # seconds; doubles on each attempt
 
 class NotionSyncError(Exception):
     """Raised when a Notion API call fails."""
-    pass
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class NotionSync:
@@ -82,14 +85,15 @@ class NotionSync:
                 if e.code in _RETRY_STATUSES and attempt < _MAX_RETRIES:
                     print(f"Notion API {method} {endpoint} returned {e.code}, "
                           f"retrying in {delay:.1f}s (attempt {attempt + 1}/{_MAX_RETRIES})")
-                    time.sleep(delay)
+                    time.sleep(delay + random.uniform(0, delay * 0.1))
                     delay *= 2
                     continue
                 error_body = e.read().decode("utf-8", errors="replace")
                 # Truncate error body to prevent leaking sensitive API response data
                 safe_body = error_body[:200] if error_body else ""
                 raise NotionSyncError(
-                    f"Notion API {method} {endpoint} returned {e.code}: {safe_body}"
+                    f"Notion API {method} {endpoint} returned {e.code}: {safe_body}",
+                    status_code=e.code
                 )
             except URLError as e:
                 raise NotionSyncError(f"Notion API connection failed: {e.reason}")
@@ -530,8 +534,11 @@ class NotionSync:
         for bid in block_ids:
             try:
                 self._request("DELETE", f"blocks/{bid}")
-            except NotionSyncError:
-                pass  # Block may already be gone
+            except NotionSyncError as e:
+                if e.status_code == 404:
+                    pass  # Block already deleted
+                else:
+                    raise
 
         # Append new blocks in batches
         new_blocks = self._prepend_toc(self._markdown_to_blocks(content))
@@ -551,7 +558,7 @@ class NotionSync:
         content = file_path.read_text(encoding="utf-8", errors="replace")
         title = file_path.stem.replace("-", " ").replace("_", " ").title()
         file_name = file_path.name
-        vault_path = vault_rel_path or f"Claude Code/{source_folder}/{file_name}"
+        vault_path = vault_rel_path or f"{source_folder}/{file_name}"
 
         if existing_page_id:
             return self.update_page(

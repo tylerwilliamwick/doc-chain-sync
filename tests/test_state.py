@@ -20,9 +20,8 @@ class TestSyncState(unittest.TestCase):
         self.state_file = os.path.join(self.tmp, "test-state.json")
 
     def tearDown(self):
-        if os.path.exists(self.state_file):
-            os.unlink(self.state_file)
-        os.rmdir(self.tmp)
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_empty_state_on_first_run(self):
         """State file is created empty when it doesn't exist."""
@@ -104,6 +103,27 @@ class TestSyncState(unittest.TestCase):
 
         state2 = SyncState(self.state_file)
         self.assertIsNotNone(state2.last_run)
+
+    def test_save_creates_bak_file(self):
+        """After save(), .bak exists and contains valid JSON."""
+        state = SyncState(self.state_file)
+        state.record_sync("Projects/test.md", 1000.0, notion_page_id="abc")
+        state.save()  # First save creates state file
+        state.save()  # Second save creates .bak from first
+
+        bak_path = Path(self.state_file).with_suffix(".bak")
+        self.assertTrue(bak_path.exists())
+        with open(bak_path) as f:
+            data = json.load(f)
+        self.assertIn("files", data)
+
+    def test_save_tmp_not_persisted(self):
+        """After save(), .tmp file does not exist."""
+        state = SyncState(self.state_file)
+        state.save()
+
+        tmp_path = Path(self.state_file).with_suffix(".tmp")
+        self.assertFalse(tmp_path.exists())
 
 
 if __name__ == "__main__":

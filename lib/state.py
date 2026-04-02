@@ -35,10 +35,19 @@ class SyncState:
             return {"files": {}, "last_run": None}
 
     def save(self):
-        """Persist state to disk."""
+        """Persist state to disk atomically with backup."""
         self._data["last_run"] = datetime.now().isoformat()
-        with open(self.state_file, "w") as f:
+        tmp_path = self.state_file.with_suffix(".tmp")
+        bak_path = self.state_file.with_suffix(".bak")
+        # Write to temp file first
+        with open(tmp_path, "w") as f:
             json.dump(self._data, f, indent=2)
+        # Backup current state if it exists
+        if self.state_file.exists():
+            import shutil
+            shutil.copy2(self.state_file, bak_path)
+        # Atomic swap
+        os.replace(tmp_path, self.state_file)
 
     def get_file_state(self, vault_path: str) -> dict:
         """Get sync state for a specific vault file."""
