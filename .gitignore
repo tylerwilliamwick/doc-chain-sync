@@ -6,7 +6,7 @@ pytest-cache-files-*/
 
 # Runtime state (machine-specific)
 sync-state.json
-sync-state.bak
+*.bak
 doc-chain-sync.log
 doc-chain-sync.log.old
 progress.txt
