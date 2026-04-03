@@ -40,6 +40,7 @@ class GDriveSync:
         self.rclone_remote = config.get("rclone_remote", "gdrive")
         self.rclone_dest = config.get("rclone_dest", "NotebookLM-Vault")
         self.mirror_structure = config.get("mirror_structure", True)
+        self._mkdir_cache: set = set()
 
     def is_configured(self) -> bool:
         """Check if the selected mode is available."""
@@ -89,16 +90,18 @@ class GDriveSync:
         rel_path = self._get_dest_path(source_folder, file_path.name)
         remote_dest = f"{self.rclone_remote}:{self.rclone_dest}/{rel_path}"
 
-        # Ensure remote directory exists
+        # Ensure remote directory exists (once per directory per sync run)
         remote_dir = f"{self.rclone_remote}:{self.rclone_dest}/{source_folder}"
-        mkdir_result = subprocess.run(
-            ["rclone", "mkdir", remote_dir],
-            capture_output=True, text=True, timeout=30
-        )
-        if mkdir_result.returncode != 0:
-            raise GDriveSyncError(
-                f"rclone mkdir failed for {remote_dir}: {mkdir_result.stderr.strip()}"
+        if remote_dir not in self._mkdir_cache:
+            mkdir_result = subprocess.run(
+                ["rclone", "mkdir", remote_dir],
+                capture_output=True, text=True, timeout=30
             )
+            if mkdir_result.returncode != 0:
+                raise GDriveSyncError(
+                    f"rclone mkdir failed for {remote_dir}: {mkdir_result.stderr.strip()}"
+                )
+            self._mkdir_cache.add(remote_dir)
 
         # Copy the file
         result = subprocess.run(
