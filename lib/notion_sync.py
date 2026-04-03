@@ -430,7 +430,7 @@ class NotionSync:
 
     def create_page(self, title: str, source_folder: str,
                     content: str, file_name: str, vault_path: str,
-                    content_type: str = None) -> str:
+                    content_type: str = None, project: str = None) -> str:
         """Create a new Notion page in the database.
 
         Returns the page ID for future updates.
@@ -444,6 +444,7 @@ class NotionSync:
         prop_synced = self.properties.get("synced_at", "Synced At")
         prop_file = self.properties.get("file_name", "File Name")
         prop_vault = self.properties.get("vault_path", "Vault Path")
+        prop_project = self.properties.get("project", "Project")
 
         now = datetime.now(timezone.utc).isoformat()
 
@@ -457,6 +458,9 @@ class NotionSync:
                 prop_vault: {"rich_text": self._rich_text(vault_path)},
             },
         }
+
+        if project:
+            body["properties"][prop_project] = {"select": {"name": project}}
 
         if content_type:
             body["properties"][prop_type] = {"select": {"name": content_type}}
@@ -480,7 +484,7 @@ class NotionSync:
 
     def update_page(self, page_id: str, title: str, source_folder: str,
                     content: str, file_name: str, vault_path: str,
-                    content_type: str = None) -> str:
+                    content_type: str = None, project: str = None) -> str:
         """Update an existing Notion page.
 
         Updates properties (including icon/cover if content_type supplied) and replaces
@@ -494,6 +498,9 @@ class NotionSync:
         prop_source = self.properties.get("source_folder", "Source")
         prop_type = self.properties.get("type_field", "Type")
         prop_synced = self.properties.get("synced_at", "Synced At")
+        prop_file = self.properties.get("file_name", "File Name")
+        prop_vault = self.properties.get("vault_path", "Vault Path")
+        prop_project = self.properties.get("project", "Project")
 
         now = datetime.now(timezone.utc).isoformat()
 
@@ -502,8 +509,13 @@ class NotionSync:
                 prop_title: {"title": self._rich_text(title)},
                 prop_source: {"select": {"name": source_folder}},
                 prop_synced: {"date": {"start": now}},
+                prop_file: {"rich_text": self._rich_text(file_name)},
+                prop_vault: {"rich_text": self._rich_text(vault_path)},
             }
         }
+
+        if project:
+            props_body["properties"][prop_project] = {"select": {"name": project}}
 
         if content_type:
             props_body["properties"][prop_type] = {"select": {"name": content_type}}
@@ -549,7 +561,7 @@ class NotionSync:
 
     def sync_file(self, file_path: Path, source_folder: str,
                   existing_page_id: str = None, vault_rel_path: str = None,
-                  content_type: str = None) -> str:
+                  content_type: str = None, project: str = None) -> str:
         """Sync a single vault file to Notion.
 
         Creates a new page or updates an existing one.
@@ -565,9 +577,11 @@ class NotionSync:
                 existing_page_id, title, source_folder,
                 content, file_name, vault_path,
                 content_type=content_type,
+                project=project,
             )
         else:
             return self.create_page(
                 title, source_folder, content, file_name, vault_path,
                 content_type=content_type,
+                project=project,
             )

@@ -197,6 +197,13 @@ def run_sync(config: dict, dry_run: bool = False,
         notion_page_id = state.get_notion_page_id(vault_path)
         gdrive_path = None
 
+        # Extract project name from subfolder
+        project_name = None
+        if source_folder == "Projects":
+            rel_parts = rel.parts
+            if len(rel_parts) >= 3:
+                project_name = str(rel_parts[1])
+
         # Sync to Notion
         if notion_available:
             try:
@@ -205,6 +212,7 @@ def run_sync(config: dict, dry_run: bool = False,
                     existing_page_id=notion_page_id,
                     vault_rel_path=vault_path,
                     content_type=content_type,
+                    project=project_name,
                 )
                 logger.sync_event(file_path.name, "notion", "ok",
                                   "updated" if notion_page_id else "created")

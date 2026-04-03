@@ -35,6 +35,7 @@ notion:
     synced_at: Synced At   # Date property
     file_name: File Name   # Rich text property
     vault_path: Vault Path # Rich text property
+    project: Project       # Select: project name from subfolder
 
   type_detection:
     folder_map:
