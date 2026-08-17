@@ -3,8 +3,8 @@
 
 # Vault source settings
 vault:
-  base_path: ~/Vault/Claude Code
-  # Only these subdirectories get synced (deliverables + decisions)
+  base_path: ~/Ty
+  # Only these subdirectories get synced.
   watch_folders:
     - Projects
     - Decisions
@@ -87,9 +87,9 @@ google_drive:
 # Sync behavior
 sync:
   # State file tracks what's been synced and when
-  state_file: ~/scripts/doc-chain/sync-state.json
+  state_file: ~/Library/Application Support/doc-chain-sync/sync-state.json
   # Log file
-  log_file: ~/scripts/doc-chain/doc-chain-sync.log
+  log_file: ~/Library/Logs/doc-chain-sync/doc-chain-sync.log
   # Max log size before rotation (bytes)
   max_log_size: 1048576  # 1MB
   # Dry run mode (logs what would happen without syncing)

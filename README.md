@@ -4,12 +4,12 @@ Automated pipeline that syncs Obsidian vault deliverables to Notion and Google D
 
 ## What it does
 
-Watches three vault folders (Projects, Decisions, Plans) and syncs changed `.md` files to:
+Watches configured vault folders and syncs changed `.md` files to:
 
 - **Notion**: Creates/updates pages in a database with metadata (source folder, sync timestamp, vault path)
 - **Google Drive**: Mirrors the folder structure via rclone for NotebookLM auto-ingestion
 
-Runs as a macOS LaunchAgent on a 5-minute polling interval. Incremental: only syncs files that changed since the last run.
+Supports macOS LaunchAgent polling at 5-minute intervals after local paths, credentials, and destinations are configured. Incremental: only syncs files that changed since the last run.
 
 ## Setup
 
@@ -66,7 +66,7 @@ lib/
   state.py             # JSON-based incremental sync state tracker
   logger.py            # Rotating file logger
 config.yaml            # All configuration (paths, remotes, property names)
-tests/                 # 52 automated tests
+tests/                 # 98 automated tests
 ```
 
 **No external dependencies** beyond PyYAML. The Notion client uses `urllib` directly. Google Drive sync shells out to `rclone`.
@@ -84,7 +84,7 @@ See `config.yaml` for all options. Key settings:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `vault.base_path` | `~/Vault/Claude Code` | Root of the Obsidian vault |
+| `vault.base_path` | `~/Ty` | Root of the Obsidian vault |
 | `vault.watch_folders` | Projects, Decisions, Plans | Subdirectories to sync |
 | `google_drive.mode` | `rclone` | `rclone` (headless) or `desktop_app` (local folder copy) |
 | `google_drive.rclone_remote` | `gdrive` | Name of the rclone remote |
