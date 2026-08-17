@@ -195,9 +195,10 @@ def run_sync(config: dict, dry_run: bool = False,
             logger.info(f"Syncing: {file_path.name} from {source_folder}")
 
         content_type = detect_content_type(file_path, source_folder, config)
-        file_synced = False
+        available_targets = int(notion_available) + int(gdrive_available)
+        successful_targets = 0
         notion_page_id = state.get_notion_page_id(vault_path)
-        gdrive_path = None
+        gdrive_path = state.get_file_state(vault_path).get("gdrive_path")
 
         # Extract project name from subfolder
         project_name = None
@@ -218,7 +219,12 @@ def run_sync(config: dict, dry_run: bool = False,
                 )
                 logger.sync_event(file_path.name, "notion", "ok",
                                   "updated" if notion_page_id else "created")
-                file_synced = True
+                successful_targets += 1
+                state.record_partial_sync(
+                    vault_path,
+                    notion_page_id=notion_page_id,
+                    gdrive_path=gdrive_path,
+                )
             except Exception as e:
                 logger.sync_event(file_path.name, "notion", "error", str(e))
                 state.record_failure(vault_path, "notion", str(e))
@@ -230,13 +236,18 @@ def run_sync(config: dict, dry_run: bool = False,
                 drive_subfolder = str(rel.parent) if rel.parent != Path(".") else source_folder
                 gdrive_path = gdrive.sync_file(file_path, drive_subfolder)
                 logger.sync_event(file_path.name, "gdrive", "ok", gdrive_path)
-                file_synced = True
+                successful_targets += 1
+                state.record_partial_sync(
+                    vault_path,
+                    notion_page_id=notion_page_id,
+                    gdrive_path=gdrive_path,
+                )
             except Exception as e:
                 logger.sync_event(file_path.name, "gdrive", "error", str(e))
                 state.record_failure(vault_path, "gdrive", str(e))
                 stats["errors"] += 1
 
-        if file_synced:
+        if successful_targets == available_targets:
             state.record_sync(vault_path, mtime,
                               notion_page_id=notion_page_id,
                               gdrive_path=gdrive_path)

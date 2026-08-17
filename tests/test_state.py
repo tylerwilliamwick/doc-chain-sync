@@ -72,6 +72,25 @@ class TestSyncState(unittest.TestCase):
         file_state = state2.get_file_state("Plans/roadmap.md")
         self.assertEqual(file_state["gdrive_path"], "gdrive:NotebookLM-Vault/Plans/roadmap.md")
 
+    def test_record_partial_sync_stays_retryable(self):
+        """Partial target success persists IDs without marking file complete."""
+        state = SyncState(self.state_file)
+        state.record_sync("Projects/test.md", 1000.0, notion_page_id="old-page")
+        state.record_partial_sync(
+            "Projects/test.md",
+            notion_page_id="new-page",
+            gdrive_path="/drive/Projects/test.md",
+        )
+        state.save()
+
+        state2 = SyncState(self.state_file)
+        file_state = state2.get_file_state("Projects/test.md")
+        self.assertEqual(file_state["notion_page_id"], "new-page")
+        self.assertEqual(file_state["gdrive_path"], "/drive/Projects/test.md")
+        self.assertNotIn("last_mtime", file_state)
+        self.assertTrue(state2.needs_sync("Projects/test.md", 1000.0))
+        self.assertTrue(state2.needs_sync("Projects/test.md", 0.0))
+
     def test_record_failure_capped_at_five(self):
         """Error log is capped at 5 entries per file."""
         state = SyncState(self.state_file)

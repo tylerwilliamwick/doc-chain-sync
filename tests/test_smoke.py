@@ -202,6 +202,42 @@ tags: [#roadmap]
 
     @patch.dict(os.environ, {"SMOKE_NOTION_TOKEN": "test-tok", "SMOKE_NOTION_DB": "test-db"})
     @patch("notion_sync.NotionSync._request")
+    @patch("dispatcher.GDriveSync.sync_file", side_effect=[Exception("Drive down"), "/drive/Projects/gis-integration.md"])
+    def test_smoke_partial_target_retries_without_duplicate_page(
+        self, mock_drive_sync, mock_notion_request
+    ):
+        """A sibling target failure leaves file retryable and reuses Notion page."""
+        for rel_path in [
+            "Decisions/api-versioning-strategy.md",
+            "Plans/q2-roadmap.md",
+        ]:
+            os.unlink(os.path.join(self.vault, rel_path))
+        mock_notion_request.return_value = {"id": "page-123"}
+
+        first = run_sync(self.config)
+
+        self.assertEqual(first["synced"], 0)
+        self.assertGreater(first["errors"], 0)
+        vault_path = f"{Path(self.vault).name}/Projects/gis-integration.md"
+        state = SyncState(self.config["sync"]["state_file"])
+        partial = state.get_file_state(vault_path)
+        self.assertEqual(partial["notion_page_id"], "page-123")
+        self.assertNotIn("last_mtime", partial)
+        self.assertTrue(state.needs_sync(vault_path, Path(self.vault, "Projects/gis-integration.md").stat().st_mtime))
+
+        mock_notion_request.reset_mock()
+        second = run_sync(self.config)
+
+        self.assertEqual(second["synced"], 1)
+        self.assertEqual(second["errors"], 0)
+        self.assertTrue(any(
+            call.args[1] == "pages/page-123"
+            for call in mock_notion_request.call_args_list
+            if len(call.args) > 1
+        ))
+
+    @patch.dict(os.environ, {"SMOKE_NOTION_TOKEN": "test-tok", "SMOKE_NOTION_DB": "test-db"})
+    @patch("notion_sync.NotionSync._request")
     def test_smoke_force_resyncs_everything(self, mock_notion_request):
         """Force flag re-syncs all files regardless of mtime."""
         mock_notion_request.return_value = {"id": "page-123"}

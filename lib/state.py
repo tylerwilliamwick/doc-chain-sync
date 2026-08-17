@@ -58,7 +58,9 @@ class SyncState:
         file_state = self.get_file_state(vault_path)
         if not file_state:
             return True
-        last_mtime = file_state.get("last_mtime", 0)
+        if "last_mtime" not in file_state:
+            return True
+        last_mtime = file_state["last_mtime"]
         return current_mtime > last_mtime
 
     def record_sync(self, vault_path: str, mtime: float,
@@ -71,6 +73,21 @@ class SyncState:
         entry["last_mtime"] = mtime
         entry["last_synced"] = datetime.now().isoformat()
 
+        if notion_page_id is not None:
+            entry["notion_page_id"] = notion_page_id
+        if gdrive_path is not None:
+            entry["gdrive_path"] = gdrive_path
+
+    def record_partial_sync(self, vault_path: str,
+                            notion_page_id: str = None,
+                            gdrive_path: str = None):
+        """Persist successful target results without marking file complete."""
+        if vault_path not in self._data["files"]:
+            self._data["files"][vault_path] = {}
+
+        entry = self._data["files"][vault_path]
+        entry.pop("last_mtime", None)
+        entry.pop("last_synced", None)
         if notion_page_id is not None:
             entry["notion_page_id"] = notion_page_id
         if gdrive_path is not None:
