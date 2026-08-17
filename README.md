@@ -75,7 +75,7 @@ lib/
   state.py             # JSON-based incremental sync state tracker
   logger.py            # Rotating file logger
 config.yaml            # All configuration (paths, remotes, property names)
-tests/                 # 98 automated tests
+tests/                 # automated tests
 ```
 
 **No external dependencies** beyond PyYAML. The Notion client uses `urllib` directly. Google Drive sync shells out to `rclone`.
