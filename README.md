@@ -9,7 +9,7 @@ Watches configured vault folders and syncs changed `.md` files to:
 - **Notion**: Creates/updates pages in a database with metadata (source folder, sync timestamp, vault path)
 - **Google Drive**: Mirrors the folder structure via rclone for NotebookLM auto-ingestion
 
-Supports macOS LaunchAgent polling at 5-minute intervals after local paths, credentials, and destinations are configured. Incremental: only syncs files that changed since the last run.
+No LaunchAgent is installed by this checkout. After local paths, credentials, and destinations are configured, it supports 5-minute polling. Incremental: only syncs files that changed since the last run.
 
 ## Setup
 
