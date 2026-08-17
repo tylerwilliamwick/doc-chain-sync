@@ -7,7 +7,8 @@ deliverables and decisions, then syncs changed files to Notion and Google Drive
 (for NotebookLM ingestion).
 
 Designed to run as a LaunchAgent on a polling interval (default 5 min).
-Can also be run manually: python dispatcher.py [--dry-run] [--force] [--verbose]
+Can also be run manually:
+python dispatcher.py [--dry-run] [--force] [--verbose] [--require-target]
 
 Flow:
   1. Load config and sync state
@@ -132,7 +133,8 @@ def cleanup_deleted(state: SyncState, vault_base: Path, logger: SyncLogger):
 
 
 def run_sync(config: dict, dry_run: bool = False,
-             force: bool = False, verbose: bool = False):
+             force: bool = False, verbose: bool = False,
+             require_target: bool = False):
     """Execute the sync pipeline."""
     vault_cfg = config["vault"]
     vault_base = Path(vault_cfg["base_path"]).expanduser()
@@ -163,7 +165,7 @@ def run_sync(config: dict, dry_run: bool = False,
 
     if not notion_available and not gdrive_available:
         logger.warn("No sync targets available. Nothing to do.")
-        return {"synced": 0, "errors": 0, "skipped": 0}
+        return {"synced": 0, "errors": int(require_target), "skipped": 0}
 
     # Scan vault
     files = scan_vault(vault_base, watch_folders, exclude_patterns)
@@ -264,6 +266,8 @@ def main():
                         help="Sync all files regardless of modification time")
     parser.add_argument("--verbose", action="store_true",
                         help="Log each file as it syncs")
+    parser.add_argument("--require-target", action="store_true",
+                        help="Exit nonzero if no sync target is available")
     args = parser.parse_args()
 
     try:
@@ -281,6 +285,7 @@ def main():
         dry_run=args.dry_run or config.get("sync", {}).get("dry_run", False),
         force=args.force,
         verbose=args.verbose,
+        require_target=args.require_target,
     )
 
     if stats["errors"] > 0:

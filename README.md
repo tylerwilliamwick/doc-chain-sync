@@ -54,6 +54,13 @@ python3 dispatcher.py --dry-run --verbose
 python3 dispatcher.py --force --verbose
 ```
 
+**Require at least one configured target (useful for automation):**
+```bash
+python3 dispatcher.py --require-target
+```
+
+Without `--require-target`, unavailable targets remain a successful no-op for backward compatibility. With it, the process exits 1 when both Notion and Google Drive are unavailable.
+
 **As a LaunchAgent (macOS):**
 
 Create a plist at `~/Library/LaunchAgents/com.tylerwick.doc-chain-sync.plist` pointing to `dispatcher.py` with the Notion env vars in `EnvironmentVariables`. See the SDLC package for the full plist template.

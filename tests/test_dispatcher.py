@@ -11,7 +11,14 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-from dispatcher import load_config, scan_vault, cleanup_deleted, run_sync, detect_content_type
+from dispatcher import (
+    cleanup_deleted,
+    detect_content_type,
+    load_config,
+    main,
+    run_sync,
+    scan_vault,
+)
 from state import SyncState
 
 
@@ -343,6 +350,19 @@ class TestRunSync(unittest.TestCase):
         stats = run_sync(self.config)
         self.assertEqual(stats["synced"], 0)
         self.assertEqual(stats["errors"], 0)
+
+    def test_require_target_reports_error_when_no_targets_available(self):
+        """Required target mode fails when both targets are unavailable."""
+        stats = run_sync(self.config, require_target=True)
+        self.assertEqual(stats["errors"], 1)
+
+    def test_require_target_cli_exits_nonzero_when_no_targets_available(self):
+        """--require-target exits 1 when both targets are unavailable."""
+        with patch.object(sys, "argv", ["dispatcher.py", "--require-target"]), \
+                patch("dispatcher.load_config", return_value=self.config):
+            with self.assertRaises(SystemExit) as raised:
+                main()
+        self.assertEqual(raised.exception.code, 1)
 
     def test_missing_vault_returns_error(self):
         """Missing vault directory is logged as error."""
