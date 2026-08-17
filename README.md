@@ -85,7 +85,7 @@ See `config.yaml` for all options. Key settings:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `vault.base_path` | `~/Ty` | Root of the Obsidian vault |
-| `vault.watch_folders` | Projects, Decisions, Plans | Subdirectories to sync |
+| `vault.watch_folders` | Configured in `config.yaml` | Subdirectories to sync |
 | `google_drive.mode` | `rclone` | `rclone` (headless) or `desktop_app` (local folder copy) |
 | `google_drive.rclone_remote` | `gdrive` | Name of the rclone remote |
 | `google_drive.rclone_dest` | `NotebookLM-Vault` | Destination folder on Drive |
