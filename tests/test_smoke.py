@@ -236,6 +236,47 @@ tags: [#roadmap]
             if len(call.args) > 1
         ))
 
+    @patch("notion_sync.NotionSync._request")
+    def test_smoke_unconfigured_enabled_target_remains_retryable(
+        self, mock_notion_request
+    ):
+        """An enabled target must succeed before a file is complete."""
+        for rel_path in [
+            "Decisions/api-versioning-strategy.md",
+            "Plans/q2-roadmap.md",
+        ]:
+            os.unlink(os.path.join(self.vault, rel_path))
+
+        with patch.dict(os.environ, {
+            "SMOKE_NOTION_TOKEN": "",
+            "SMOKE_NOTION_DB": "",
+        }):
+            first = run_sync(self.config)
+
+        vault_file = Path(self.vault, "Projects/gis-integration.md")
+        vault_path = f"{Path(self.vault).name}/Projects/gis-integration.md"
+        state = SyncState(self.config["sync"]["state_file"])
+        self.assertEqual(first["synced"], 0)
+        self.assertTrue(Path(
+            self.drive_folder, "Projects/gis-integration.md"
+        ).exists())
+        self.assertNotIn("last_mtime", state.get_file_state(vault_path))
+        self.assertTrue(state.needs_sync(vault_path, vault_file.stat().st_mtime))
+
+        mock_notion_request.return_value = {"id": "page-123"}
+        with patch.dict(os.environ, {
+            "SMOKE_NOTION_TOKEN": "test-tok",
+            "SMOKE_NOTION_DB": "test-db",
+        }):
+            second = run_sync(self.config)
+
+        self.assertEqual(second["synced"], 1)
+        self.assertGreater(mock_notion_request.call_count, 0)
+        completed = SyncState(
+            self.config["sync"]["state_file"]
+        ).get_file_state(vault_path)
+        self.assertEqual(completed["last_mtime"], vault_file.stat().st_mtime)
+
     @patch.dict(os.environ, {"SMOKE_NOTION_TOKEN": "test-tok", "SMOKE_NOTION_DB": "test-db"})
     @patch("notion_sync.NotionSync._request")
     def test_smoke_force_resyncs_everything(self, mock_notion_request):

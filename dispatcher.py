@@ -195,7 +195,7 @@ def run_sync(config: dict, dry_run: bool = False,
             logger.info(f"Syncing: {file_path.name} from {source_folder}")
 
         content_type = detect_content_type(file_path, source_folder, config)
-        available_targets = int(notion_available) + int(gdrive_available)
+        enabled_targets = int(notion.enabled) + int(gdrive.enabled)
         successful_targets = 0
         notion_page_id = state.get_notion_page_id(vault_path)
         gdrive_path = state.get_file_state(vault_path).get("gdrive_path")
@@ -247,7 +247,7 @@ def run_sync(config: dict, dry_run: bool = False,
                 state.record_failure(vault_path, "gdrive", str(e))
                 stats["errors"] += 1
 
-        if successful_targets == available_targets:
+        if successful_targets == enabled_targets:
             state.record_sync(vault_path, mtime,
                               notion_page_id=notion_page_id,
                               gdrive_path=gdrive_path)
