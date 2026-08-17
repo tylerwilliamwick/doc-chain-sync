@@ -11,6 +11,8 @@ Watches configured vault folders and syncs changed `.md` files to:
 
 No LaunchAgent is installed by this checkout. After local paths, credentials, and destinations are configured, it supports 5-minute polling. Incremental: only syncs files that changed since the last run.
 
+Current checkout status: runtime is inactive until Notion and Google Drive targets are configured. The latest local log reports both targets disabled or unconfigured and no sync state. Passing tests cover mocked integrations, not live delivery.
+
 ## Setup
 
 ### Prerequisites
