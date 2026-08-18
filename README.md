@@ -18,7 +18,8 @@ Current checkout status: runtime is inactive until Notion and Google Drive targe
 ### Prerequisites
 
 - Python 3.9+
-- [rclone](https://rclone.org/) (`brew install rclone`)
+- [rclone](https://rclone.org/) (`brew install rclone`) when using
+  `google_drive.mode: rclone`; `desktop_app` mode uses a configured local folder
 - A [Notion internal integration](https://www.notion.so/my-integrations) with read/insert/update capabilities
 - A Notion database with these properties:
   - **Name** (title)
@@ -78,7 +79,9 @@ config.yaml            # All configuration (paths, remotes, property names)
 tests/                 # automated tests
 ```
 
-**No external dependencies** beyond PyYAML. The Notion client uses `urllib` directly. Google Drive sync shells out to `rclone`.
+**No Python package dependencies** beyond PyYAML. The Notion client uses
+`urllib` directly. Google Drive `rclone` mode shells out to `rclone`; desktop
+app mode uses the configured local-folder copy path.
 
 ## Tests
 
